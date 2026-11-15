@@ -2,30 +2,33 @@
 
 A lightweight Python Prometheus exporter for **TP-Link Deco** mesh routers (tested on **Deco BE11000** Wi-Fi 7) built on [`roquerodrigo/tplink-deco-api`](https://github.com). It exposes router CPU/memory usage, internet connectivity, mesh node health, connected client metadata, and accurately scaled Rx/Tx bandwidth metrics on port **`7550`**.
 
+Pre-built multi-architecture Docker images (`linux/amd64` and `linux/arm64` for Raspberry Pi) are published automatically to **GitHub Container Registry (`ghcr.io`)**.
+
 ## Why This Exporter?
 
 * **Accurate Bandwidth Calibration (`SPEED_MULTIPLIER=125`):** Newer TP-Link Deco firmware (such as Wi-Fi 7 BE11000) reports `down_speed` and `up_speed` in **Kbps** rather than `KB/s` or `Bytes/s`. Multiplying by `125` (`1000 bits / 8`) converts the raw API values into exact **Bytes/sec** so downstream dashboards (`MB/s` and `Mbps`) match real-world speed tests.
 * **Aggregate & Per-Client Throughput:** Pulls total mesh download/upload speeds via `get_client_totals()` (with automatic fallback to summing client speeds) alongside individual per-client speeds.
-* **Drop-In Compatibility:** Outputs standardized `deco_*` Prometheus metric names designed to feed directly into Prometheus and Homarr v2 custom widgets.
+* **Multi-Arch Container Image:** Ready-to-run Docker images built via GitHub Actions for both x86_64 servers and ARM64 devices like Raspberry Pi.
 
 ---
 
-## Project Files
+## Docker Image (`ghcr.io`)
 
-```text
-deco-exporter/
-├── Dockerfile
-├── docker-compose.yml
-├── exporter.py
-├── requirements.txt
-└── README.md
+Pull the pre-built image from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/ksy23/deco-exporter:latest
 ```
+
+### Available Tags
+* `latest` — Latest build from the `main` branch
+* `1.0.0` / `1.0` — Semantic version tags matching GitHub Releases (e.g., `v1.0.0`)
 
 ---
 
 ## Configuration (Environment Variables)
 
-All settings can be overridden via environment variables in `docker-compose.yml`:
+All settings can be configured via environment variables in `docker-compose.yml`:
 
 | Variable | Description | Default |
 | :--- | :--- | :--- |
@@ -40,7 +43,36 @@ All settings can be overridden via environment variables in `docker-compose.yml`
 
 ## Deployment (Docker Compose)
 
+### Option 1: Use the Pre-Built `ghcr.io` Image (Recommended)
+
 1. **Create your `docker-compose.yml`:**
+
+```yaml
+services:
+  deco_exporter:
+    image: ghcr.io/ksy23/deco-exporter:latest
+    container_name: deco_exporter
+    ports:
+      - "7550:7550"
+    environment:
+      DECO_HOST: "192.168.1.1"
+      DECO_USERNAME: "admin"
+      DECO_PASSWORD: "your-tplink-password"
+      POLL_INTERVAL: "30"
+      METRICS_PORT: "7550"
+      SPEED_MULTIPLIER: "125"
+    restart: unless-stopped
+```
+
+2. **Start the container:**
+
+```bash
+docker compose up -d
+```
+
+### Option 2: Build Locally From Source
+
+If you prefer building the image locally from this repository:
 
 ```yaml
 services:
@@ -59,13 +91,11 @@ services:
     restart: unless-stopped
 ```
 
-2. **Build and start the container:**
-
 ```bash
 docker compose up -d --build
 ```
 
-3. **Verify logs and `/metrics` output:**
+### Verify Exporter Output
 
 ```bash
 docker logs -f deco_exporter
@@ -80,7 +110,7 @@ Add the `deco` job to your `prometheus.yml` pointing to port **`7550`** (match `
 
 ```yaml
 scrape_configs:
-  - job_name: 'deco'
+  - job_name: 'deco-exporter'
     scrape_interval: 30s
     static_configs:
       - targets: ['<docker-host-ip>:7550']

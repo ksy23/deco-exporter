@@ -57,8 +57,12 @@ def poll_deco():
 
         # 2. Internet Status
         inet = deco.get_internet_status()
-        inet_str = str(getattr(inet, "internet_status", getattr(inet, "link_status", ""))).lower()
-        g_internet_online.set(1.0 if inet_str in ("online", "connected", "true", "1") else 0.0)
+        inet_data = inet if isinstance(inet, dict) else vars(inet)
+        ipv4 = inet_data.get("ipv4") or {}
+        ipv6 = inet_data.get("ipv6") or {}
+        v4_status = str(ipv4.get("inet_status") if isinstance(ipv4, dict) else getattr(ipv4, "inet_status", "")).lower()
+        v6_status = str(ipv6.get("inet_status") if isinstance(ipv6, dict) else getattr(ipv6, "inet_status", "")).lower()
+        g_internet_online.set(1.0 if (v4_status == "online" or v6_status == "online") else 0.0)
 
         # 3. Mesh Nodes
         devices = deco.get_device_list()

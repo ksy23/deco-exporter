@@ -1,0 +1,13 @@
+services:
+  deco_exporter:
+    build: .
+    container_name: deco_exporter
+    ports:
+      - "7550:7550"
+    environment:
+      DECO_HOST: "192.168.1.1"
+      DECO_USERNAME: "admin"
+      DECO_PASSWORD: "PASSWORD_HERE"
+      POLL_INTERVAL: "30"
+      SPEED_MULTIPLIER: "125"
+    restart: unless-stopped
